@@ -121,10 +121,10 @@ class Trainer(object):
     def predict(self, image):
         image = transform_tr(image)
         image = image.cuda()
+        output = None
         with torch.no_grad():
             output = self.model(image)
-        decode_seg_map_sequence(torch.max(output[0], 1)[1].detach().cpu().numpy(),
-                                                       dataset=dataset), 3, normalize=False, range=(0, 255)
+        decode_seg_map_sequence(torch.max(output, 1)[1].detach().cpu().numpy(), dataset='cityscapes'), 3, normalize=False, range=(0, 255)
 
 
 def ToTensor(img):
