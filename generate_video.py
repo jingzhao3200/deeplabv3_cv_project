@@ -124,8 +124,8 @@ class Trainer(object):
         output = None
         with torch.no_grad():
             output = self.model(image)
-        decode_seg_map_sequence(torch.max(output, 1)[1].detach().cpu().numpy(), dataset='cityscapes'), 3, normalize=False, range=(0, 255)
-
+        img = decode_seg_map_sequence(torch.max(output, 1)[1].detach().cpu().numpy(), dataset='cityscapes')
+        return img
 
 def ToTensor(img):
     img = np.array(img).astype(np.float32).transpose((2, 0, 1))
