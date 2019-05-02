@@ -10,7 +10,7 @@ from modeling.deeplab import *
 from utils.loss import SegmentationLosses
 from utils.calculate_weights import calculate_weigths_labels
 from utils.lr_scheduler import LR_Scheduler
-from utils.saver import Saver
+# from utils.saver import Saver
 # from utils.summaries import TensorboardSummary
 from utils.metrics import Evaluator
 
@@ -19,6 +19,7 @@ from dataloaders import custom_transforms as tr
 import matplotlib.pyplot as plt
 import scipy
 from moviepy.editor import VideoFileClip
+from dataloaders.utils import decode_seg_map_sequence
 
 
 from PIL import Image, ImageOps, ImageFilter
@@ -28,8 +29,8 @@ class Trainer(object):
         self.args = args
 
         # Define Saver
-        self.saver = Saver(args)
-        self.saver.save_experiment_config()
+        # self.saver = Saver(args)
+        # self.saver.save_experiment_config()
         # Define Tensorboard Summary
         # self.summary = TensorboardSummary(self.saver.experiment_dir)
         # self.writer = self.summary.create_summary()
@@ -100,25 +101,36 @@ class Trainer(object):
             args.start_epoch = 0
 
     def generate_vedio(self):
+        self.model.eval()
+        self.evaluator.reset() 
         clip1 = VideoFileClip("Clip_KITTI_dataset.mp4")
 
-
-
-        lambda_for_func = lambda imgg: self.model(transform_tr(imgg))
+        lambda_for_func = lambda imgg: self.predict(imgg)
+        # self.model(transform_tr(imgg))
         out_clip = clip1.fl_image(lambda_for_func)
 
         output = 'Processed_Clip_KITTI_dataset.mp4'
         out_clip.write_videofile(output, audio=False)
 
-        lambda_for_func2 = lambda imgg: transform_tr(imgg)
+        lambda_for_func2 = lambda imgg: transform_test(imgg)
         out_clip2 = clip1.fl_image(lambda_for_func2)
 
         output2 = 'Input_Clip_KITTI_dataset.mp4'
         out_clip2.write_videofile(output2, audio=False)
 
+    def predict(self, image):
+        image = transform_tr(image)
+        image = image.cuda()
+        with torch.no_grad():
+            output = self.model(image)
+        decode_seg_map_sequence(torch.max(output[0], 1)[1].detach().cpu().numpy(),
+                                                       dataset=dataset), 3, normalize=False, range=(0, 255)
+
+
 def ToTensor(img):
-    # img = np.array(img).astype(np.float32).transpose((2, 0, 1))
-    img = np.array(img).astype(np.float32)
+    img = np.array(img).astype(np.float32).transpose((2, 0, 1))
+    # img = np.array(img).astype(np.float32)
+    img = img.reshape(1, 3, 512, 512)
     img = torch.from_numpy(img).float()
 
     return img
@@ -163,6 +175,14 @@ def transform_tr(img):
     img = ToTensor(img)
 
     return img
+
+def transform_test(img):
+    img = Image.fromarray(img)
+    img = FixedResize(img)
+    img = np.array(img).astype(np.float32)
+
+    return img
+
 
 
 def main():
